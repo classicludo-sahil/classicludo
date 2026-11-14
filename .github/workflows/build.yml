@@ -161,3 +161,166 @@ jobs:
           pending = null
           if (screen != "mode" && screen != "splash") {
           
+          Toast.makeText(this, "Connection lost / 接続が切れました", Toast.LENGTH_LONG).show()
+          showMode()
+          }
+          }
+          }
+          fun onMsg(m: JSONObject) {
+          when (m.optString("t")) {
+          "room" -> {
+          code = m.getString("code")
+          mode = m.getInt("mode")
+          you = m.getInt("you")
+          val a = m.getJSONArray("players")
+          colors.clear()
+          var ag = 0
+          for (i in 0 until a.length()) {
+          val o = a.getJSONObject(i)
+          colors.add(o.getInt("color"))
+          if (o.getBoolean("agreed")) ag++
+          }
+          agreedCount = ag
+          if (m.getBoolean("started")) return
+          if (colors.size < mode) {
+          agreedSelf = false
+          if (screen != "wait") showWait() else updateWait()
+          } else if (screen != "terms") {
+          agreedSelf = false
+          showTerms()
+          } else updateWait()
+          }
+          "state" -> {
+          if (screen != "game") showGame()
+          game?.update(m)
+          }
+          "end" -> {
+          Toast.makeText(this, "A player left the match / 相手が退出しました", Toast.LENGTH_LONG).show()
+          showMode()
+          }
+          }
+          }
+          override fun onBackPressed() {
+          when (screen) {
+          "splash" -> {}
+          "mode" -> finish()
+          else -> showMode()
+          }
+          }
+          override fun onDestroy() {
+          gen++
+          ws?.close(1000, null)
+          super.onDestroy()
+          }
+          }
+          EOF
+          mkdir -p $(dirname app/src/main/java/com/md/classicludo/Screens.kt)
+          cat > app/src/main/java/com/md/classicludo/Screens.kt << 'EOF'
+          package com.md.classicludo
+          import android.content.Context
+          import android.graphics.*
+          import android.graphics.drawable.GradientDrawable
+          import android.text.SpannableString
+          import android.text.Spanned
+          import android.text.style.ForegroundColorSpan
+          import android.text.style.RelativeSizeSpan
+          import android.view.Gravity
+          import android.view.View
+          import android.widget.*
+          fun MainActivity.dp(v: Int) = (v * resources.displayMetrics.density).toInt()
+          fun MainActivity.setScreen(name: String, v: View, bg: Boolean) {
+          screen = name
+          if (name != "game") game = null
+          root.removeAllViews()
+          if (bg) {
+          val b = ImageView(this)
+          b.setImageResource(R.drawable.bg)
+          b.scaleType = ImageView.ScaleType.CENTER_CROP
+          root.addView(b, FrameLayout.LayoutParams(-1, -1))
+          }
+          root.addView(v, FrameLayout.LayoutParams(-1, -1))
+          }
+          fun MainActivity.showSplash() {
+          val v = ImageView(this)
+          v.setImageResource(R.drawable.splash)
+          v.scaleType = ImageView.ScaleType.CENTER_CROP
+          setScreen("splash", v, false)
+          }
+          fun MainActivity.showMode() {
+          send("leave")
+          mode = 0
+          val col = LinearLayout(this)
+          col.orientation = LinearLayout.VERTICAL
+          col.gravity = Gravity.CENTER
+          col.setPadding(dp(20), dp(20), dp(20), dp(20))
+          val t = TextView(this)
+          t.text = "Classic LUDO"
+          t.setTextColor(Color.WHITE)
+          t.textSize = 32f
+          t.typeface = Typeface.DEFAULT_BOLD
+          t.gravity = Gravity.CENTER
+          t.setPadding(0, 0, 0, dp(24))
+          col.addView(t)
+          val names = arrayOf("DUO", "TRIPLE", "SQUAD")
+          for (i in 0..2) {
+          val card = ModeCard(this, i + 2, names[i])
+          card.setOnClickListener { startFind(i + 2) }
+          val lp = LinearLayout.LayoutParams(-1, dp(150))
+          lp.setMargins(0, dp(10), 0, dp(10))
+          col.addView(card, lp)
+          }
+          setScreen("mode", col, true)
+          }
+          fun MainActivity.startFind(n: Int) {
+          mode = n
+          colors.clear()
+          code = ""
+          agreedSelf = false
+          showWait()
+          connect { send("find", "mode" to n) }
+          }
+          fun MainActivity.showWait() {
+          val col = LinearLayout(this)
+          col.orientation = LinearLayout.VERTICAL
+          col.gravity = Gravity.CENTER
+          col.setPadding(dp(24), dp(24), dp(24), dp(24))
+          val tv = TextView(this)
+          tv.setTextColor(Color.WHITE)
+          tv.textSize = 24f
+          tv.typeface = Typeface.DEFAULT_BOLD
+          tv.gravity = Gravity.CENTER
+          waitText = tv
+          val cancel = Button(this)
+          cancel.text = "Cancel"
+          cancel.setOnClickListener { showMode() }
+          col.addView(tv)
+          col.addView(cancel, LinearLayout.LayoutParams(dp(200), -2))
+          setScreen("wait", col, true)
+          updateWait()
+          }
+          fun MainActivity.updateWait() {
+          val t = waitText ?: return
+          if (screen == "wait") {
+          t.text = if (code.isEmpty()) "Connecting...\n(first time may take about 1 minute)\n接続中…"
+          else "MATCH NO\n$code\n\nFinding players… ${colors.size}/$mode"
+          } else if (screen == "terms") {
+          t.text = "他のプレイヤーを待っています… ($agreedCount/$mode)\nWaiting for other players…"
+          }
+          }
+          fun MainActivity.rowText(jp: String, en: String): TextView {
+          val s = SpannableString(jp + "\n" + en)
+          s.setSpan(RelativeSizeSpan(0.62f), jp.length + 1, s.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+          s.setSpan(ForegroundColorSpan(Color.parseColor("#C8D7F0")), jp.length + 1, s.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+          val t = TextView(this)
+          t.text = s
+          t.setTextColor(Color.WHITE)
+          t.textSize = 19f
+          t.typeface = Typeface.DEFAULT_BOLD
+          t.setPadding(dp(16), dp(14), dp(12), dp(14))
+          val bg = GradientDrawable()
+          bg.setColor(Color.parseColor("#CC081646"))
+          bg.cornerRadius = dp(18).toFloat()
+          bg.setStroke(dp(2), Color.parseColor("#AAFFFFFF"))
+          t.background = bg
+          return t
+          
