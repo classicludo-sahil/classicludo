@@ -324,3 +324,165 @@ jobs:
           t.background = bg
           return t
           
+          }
+          fun MainActivity.showTerms() {
+          val col = LinearLayout(this)
+          col.orientation = LinearLayout.VERTICAL
+          col.setPadding(dp(16), dp(36), dp(16), dp(36))
+          val title = TextView(this)
+          title.text = "利用規約"
+          title.setTextColor(Color.WHITE)
+          title.textSize = 32f
+          title.typeface = Typeface.DEFAULT_BOLD
+          title.gravity = Gravity.CENTER
+          title.setPadding(0, 0, 0, dp(24))
+          col.addView(title)
+          val ticks = ArrayList<Tick>()
+          val btn = Button(this)
+          btn.text = "続ける"
+          btn.textSize = 22f
+          btn.isAllCaps = false
+          val waiting = TextView(this)
+          waiting.setTextColor(Color.WHITE)
+          waiting.textSize = 20f
+          waiting.gravity = Gravity.CENTER
+          waiting.visibility = View.GONE
+          waitText = waiting
+          fun refresh() {
+          val ok = ticks.size == 2 && ticks.all { it.on }
+          btn.isEnabled = ok
+          val g = GradientDrawable()
+          g.cornerRadius = dp(18).toFloat()
+          g.setColor(Color.parseColor(if (ok) "#2F7BE0" else "#6B7280"))
+          btn.background = g
+          btn.setTextColor(if (ok) Color.WHITE else Color.parseColor("#B9BEC8"))
+          }
+          val items = arrayOf(
+          arrayOf("このゲームでは、サイコロの目が操作される場合があります。", "In this game, the dice results may be manipulated."),
+          arrayOf("お金や賞品を賭けることは固く禁止されています。", "Betting money or prizes is strictly prohibited.")
+          )
+          for (it2 in items) {
+          val row = LinearLayout(this)
+          row.orientation = LinearLayout.HORIZONTAL
+          row.gravity = Gravity.CENTER_VERTICAL
+          row.addView(rowText(it2[0], it2[1]), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+          val tk = Tick(this) { refresh() }
+          ticks.add(tk)
+          val lp = LinearLayout.LayoutParams(dp(46), dp(46))
+          lp.setMargins(dp(10), 0, 0, 0)
+          row.addView(tk, lp)
+          val rl = LinearLayout.LayoutParams(-1, -2)
+          rl.setMargins(0, 0, 0, dp(16))
+          col.addView(row, rl)
+          }
+          col.addView(View(this), LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
+          btn.setOnClickListener {
+          agreedSelf = true
+          send("agree")
+          btn.visibility = View.GONE
+          waiting.visibility = View.VISIBLE
+          for (t in ticks) t.isClickable = false
+          updateWait()
+          }
+          col.addView(btn, LinearLayout.LayoutParams(-1, dp(64)))
+          col.addView(waiting, LinearLayout.LayoutParams(-1, dp(80)))
+          setScreen("terms", col, true)
+          refresh()
+          }
+          fun MainActivity.showGame() {
+          val g = GameView(this, { send("roll") }, { i -> send("move", "tok" to i) }, { showMode() })
+          g.you = you
+          g.code = code
+          for (c in colors) g.present[c] = true
+          setScreen("game", g, true)
+          game = g
+          }
+          class Tick(c: Context, val onChange: () -> Unit) : View(c) {
+          var on = false
+          val p = Paint(Paint.ANTI_ALIAS_FLAG)
+          init {
+          setOnClickListener {
+          on = !on
+          invalidate()
+          onChange()
+          }
+          }
+          override fun onDraw(cv: Canvas) {
+          val w = width.toFloat()
+          val h = height.toFloat()
+          p.style = Paint.Style.FILL
+          p.color = Color.parseColor("#EE0A1946")
+          cv.drawRoundRect(RectF(4f, 4f, w - 4f, h - 4f), 10f, 10f, p)
+          p.style = Paint.Style.STROKE
+          p.strokeWidth = 6f
+          p.color = Color.WHITE
+          cv.drawRoundRect(RectF(4f, 4f, w - 4f, h - 4f), 10f, 10f, p)
+          if (on) {
+          p.color = Color.parseColor("#50E678")
+          p.strokeWidth = 10f
+          p.strokeCap = Paint.Cap.ROUND
+          cv.drawLine(w * 0.22f, h * 0.52f, w * 0.42f, h * 0.74f, p)
+          cv.drawLine(w * 0.42f, h * 0.74f, w * 0.80f, h * 0.28f, p)
+          }
+          }
+          }
+          class ModeCard(c: Context, val n: Int, val label: String) : View(c) {
+          val p = Paint(Paint.ANTI_ALIAS_FLAG)
+          val hair = intArrayOf(0xFFFF5733.toInt(), 0xFF3CC85A.toInt(), 0xFF7B52FF.toInt(), 0xFF2A2A2A.toInt())
+          val body = intArrayOf(0xFF3AA0FF.toInt(), 0xFFFF78B4.toInt(), 0xFFFFC72A.toInt(), 0xFFF03C3C.toInt())
+          init { isClickable = true }
+          override fun onDraw(cv: Canvas) {
+          val w = width.toFloat()
+          val h = height.toFloat()
+          p.style = Paint.Style.FILL
+          p.color = 0xE0142856.toInt()
+          cv.drawRoundRect(RectF(3f, 3f, w - 3f, h - 3f), 28f, 28f, p)
+          p.style = Paint.Style.STROKE
+          p.strokeWidth = 5f
+          p.color = Color.WHITE
+          cv.drawRoundRect(RectF(3f, 3f, w - 3f, h - 3f), 28f, 28f, p)
+          val slot = (w - 40f) / 4f
+          val startX = (w - slot * n) / 2f
+          for (i in 0 until n) {
+          val cx = startX + slot * (i + 0.5f)
+          val cy = h * 0.36f
+          val r = h * 0.17f
+          p.style = Paint.Style.FILL
+          p.color = body[i]
+          cv.drawRoundRect(RectF(cx - r * 0.9f, cy + r * 0.8f, cx + r * 0.9f, cy + r * 2.1f), 12f, 12f, p)
+          p.color = 0xFFFFD2A8.toInt()
+          cv.drawCircle(cx, cy, r, p)
+          p.color = hair[i]
+          cv.drawArc(RectF(cx - r * 1.05f, cy - r * 1.05f, cx + r * 1.05f, cy + r * 1.05f), 180f, 180f, true, p)
+          p.color = Color.BLACK
+          cv.drawCircle(cx - r * 0.35f, cy + r * 0.15f, r * 0.1f, p)
+          cv.drawCircle(cx + r * 0.35f, cy + r * 0.15f, r * 0.1f, p)
+          }
+          p.style = Paint.Style.FILL
+          p.color = 0xFFFFE62E.toInt()
+          p.textSize = h * 0.2f
+          p.typeface = Typeface.DEFAULT_BOLD
+          p.textAlign = Paint.Align.CENTER
+          cv.drawText(label, w / 2f, h * 0.93f, p)
+          }
+          }
+          EOF
+          mkdir -p $(dirname app/src/main/java/com/md/classicludo/GameView.kt)
+          cat > app/src/main/java/com/md/classicludo/GameView.kt << 'EOF'
+          package com.md.classicludo
+          import android.content.Context
+          import android.graphics.*
+          import android.os.SystemClock
+          import android.view.MotionEvent
+          import android.view.View
+          import org.json.JSONObject
+          class GameView(c: Context, val onRoll: () -> Unit, val onMove: (Int) -> Unit, val onExit: () -> Unit) : View(c) {
+          val COL = intArrayOf(0xFFE81C24.toInt(), 0xFF0A9A3E.toInt(), 0xFFFFD91E.toInt(), 0xFF1E9FE5.toInt())
+          val NAME = arrayOf("Red 赤", "Green 緑", "Yellow 黄", "Blue 青")
+          val SEAT = intArrayOf(2, 3, 4, 1)
+          var tokens = Array(4) { IntArray(4) }
+          var present = BooleanArray(4)
+          var turn = -1
+          var phase = "roll"
+          var dice = 0
+          
