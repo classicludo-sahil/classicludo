@@ -649,3 +649,166 @@ jobs:
           var i = 0
           while (i < a.size) {
           
+          cv.drawCircle(d[0] + a[i] * fs * 0.55f, d[1] + a[i + 1] * fs * 0.55f, fs * 0.16f, p)
+          i += 2
+          }
+          }
+          }
+          override fun onDraw(cv: Canvas) {
+          val w = width.toFloat()
+          val h = height.toFloat()
+          val bs = w * 0.96f
+          cs = bs / 15f
+          bl = (w - bs) / 2f
+          bt = (h - bs) / 2f
+          for (k in 0..3) {
+          val o = yo[k]
+          box(cv, o[1], o[0], o[1] + 6f, o[0] + 6f, COL[k])
+          box(cv, o[1] + 0.9f, o[0] + 0.9f, o[1] + 5.1f, o[0] + 5.1f, Color.WHITE)
+          for (i in 0..3) {
+          val c = cell(k, i, 0)
+          p.style = Paint.Style.FILL
+          p.color = Color.argb(90, Color.red(COL[k]), Color.green(COL[k]), Color.blue(COL[k]))
+          cv.drawCircle(x(c[0]), y(c[1]), cs * 0.62f, p)
+          }
+          }
+          for (k in 0 until 52) {
+          val t = trk[k]
+          box(cv, t[1].toFloat(), t[0].toFloat(), t[1] + 1f, t[0] + 1f, if (k % 13 == 0) COL[k / 13] else Color.WHITE)
+          if (k % 13 == 8) text(cv, "★", x(t[1] + 0.5f), y(t[0] + 0.5f) + cs * 0.25f, cs * 0.7f, 0xFF8A93A6.toInt())
+          }
+          for (k in 0..3) for (j in 1..5) {
+          val c = cell(k, 0, 51 + j)
+          box(cv, c[0] - 0.5f, c[1] - 0.5f, c[0] + 0.5f, c[1] + 0.5f, COL[k])
+          }
+          val tri = arrayOf(
+          floatArrayOf(6f, 6f, 6f, 9f), floatArrayOf(6f, 6f, 9f, 6f),
+          floatArrayOf(9f, 6f, 9f, 9f), floatArrayOf(6f, 9f, 9f, 9f)
+          )
+          for (k in 0..3) {
+          val a = tri[k]
+          val path = Path()
+          path.moveTo(x(a[0]), y(a[1]))
+          path.lineTo(x(a[2]), y(a[3]))
+          path.lineTo(x(7.5f), y(7.5f))
+          path.close()
+          p.style = Paint.Style.FILL
+          p.color = COL[k]
+          cv.drawPath(path, p)
+          }
+          for (k in 0..3) if (present[k]) {
+          val o = yo[k]
+          val ry = if (k < 2) o[0] + 0.62f else o[0] + 5.72f
+          text(cv, if (k == you) "You あなた" else "Player " + SEAT[k], x(o[1] + 3f), y(ry), cs * 0.5f, Color.WHITE)
+          drawDice(cv, k)
+          }
+          var anim = SystemClock.uptimeMillis() < rollUntil
+          val cnt = HashMap<String, Int>()
+          val r = cs * 0.62f
+          for (k in 0..3) if (present[k]) for (i in 0..3) {
+          val pos = tokens[k][i]
+          val c = cell(k, i, pos)
+          val key = "" + (c[0] * 10).toInt() + "_" + (c[1] * 10).toInt()
+          val n = cnt[key] ?: 0
+          cnt[key] = n + 1
+          val off = if (pos == 0 || pos == 57) 0f else n * cs * 0.2f
+          val px = x(c[0]) + off
+          val py = y(c[1]) - off * 0.5f + cs * 0.15f
+          val hl = phase == "move" && turn == you && k == you && legal.contains(i) && winner < 0
+          if (hl) {
+          anim = true
+          p.style = Paint.Style.STROKE
+          p.strokeWidth = 5f
+          p.color = Color.argb(120 + ((SystemClock.uptimeMillis() / 4) % 120).toInt(), 255, 230, 40)
+          cv.drawCircle(px, py - r * 0.35f, r * 1.05f, p)
+          }
+          pin(cv, px, py, COL[k], r)
+          }
+          p.style = Paint.Style.FILL
+          p.color = 0xE0142856.toInt()
+          val mb = RectF(cs * 0.5f, cs * 0.8f, cs * 5.2f, cs * 3.0f)
+          cv.drawRoundRect(mb, 20f, 20f, p)
+          p.style = Paint.Style.STROKE
+          p.strokeWidth = 4f
+          p.color = 0xFFFFE62E.toInt()
+          cv.drawRoundRect(mb, 20f, 20f, p)
+          text(cv, "MATCH NO", cs * 2.85f, cs * 1.55f, cs * 0.5f, Color.WHITE)
+          text(cv, code, cs * 2.85f, cs * 2.55f, cs * 0.85f, 0xFFFFE62E.toInt())
+          val st = status()
+          val sy = Math.min(bt + cs * 15f + cs * 5.2f, h - cs * 2.2f)
+          text(cv, st, w / 2f, sy, cs * 0.62f, Color.WHITE)
+          val nt = noteText()
+          if (nt.isNotEmpty()) text(cv, nt, w / 2f, bt - cs * 4.6f, cs * 0.7f, 0xFFFFE62E.toInt())
+          if (winner >= 0) {
+          p.style = Paint.Style.FILL
+          p.color = 0xAA000000.toInt()
+          cv.drawRect(0f, 0f, w, h, p)
+          val msg = if (winner == you) "You win! あなたの勝ち" else NAME[winner] + " wins!"
+          text(cv, msg, w / 2f, h / 2f, cs * 1.1f, Color.WHITE)
+          text(cv, "Tap to exit / タップして終了", w / 2f, h / 2f + cs * 2f, cs * 0.6f, 0xFFFFE62E.toInt())
+          }
+          if (anim) postInvalidateDelayed(60)
+          }
+          fun status(): String {
+          if (winner >= 0 || turn < 0) return ""
+          val nm = NAME[turn]
+          return if (turn == you) {
+          when (phase) {
+          "roll" -> "あなたの番: サイコロをタップ\nYour turn: tap the dice"
+          "move" -> "駒を選んでください\nChoose a token"
+          else -> "動かせる駒なし / No move"
+          }
+          } else "$nm の番を待っています\nWaiting for $nm"
+          }
+          fun noteText(): String = when (note) {
+          "three6" -> "6が3回連続: 番が飛びます\nThree 6s: turn lost"
+          "capture" -> "取った! / Captured!"
+          "bonus" -> "もう一度! / Roll again!"
+          else -> ""
+          }
+          fun lock(f: () -> Unit) {
+          busy = true
+          postDelayed({ busy = false }, 1500)
+          f()
+          }
+          override fun onTouchEvent(e: MotionEvent): Boolean {
+          if (e.action != MotionEvent.ACTION_UP) return true
+          if (winner >= 0) {
+          onExit()
+          return true
+          }
+          if (turn != you || busy) return true
+          if (phase == "roll") {
+          val d = dicePos(you)
+          if (Math.abs(e.x - d[0]) < cs * 2.4f && Math.abs(e.y - d[1]) < cs * 2.4f) lock { onRoll() }
+          } else if (phase == "move") {
+          for (i in legal) {
+          val c = cell(you, i, tokens[you][i])
+          val dx = e.x - x(c[0])
+          val dy = e.y - y(c[1])
+          if (dx * dx + dy * dy < cs * cs * 1.4f) {
+          lock { onMove(i) }
+          break
+          }
+          }
+          }
+          return true
+          }
+          }
+          EOF
+      - name: Add assets and signing key
+        run: |
+          mkdir -p app/src/main/res/drawable-nodpi app/src/main/res/mipmap-xxxhdpi ~/.android
+          cp splash.jpg app/src/main/res/drawable-nodpi/splash.jpg
+          cp bg.jpg app/src/main/res/drawable-nodpi/bg.jpg
+          cp logo.png app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
+          echo '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' | base64 -d > ~/.android/debug.keystore
+      - name: Build
+        run: gradle assembleDebug --no-daemon
+      - name: Publish APK
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ github.run_number }}
+          name: Classic Ludo v${{ github.run_number }}
+          files: app/build/outputs/apk/debug/app-debug.apk
+          
