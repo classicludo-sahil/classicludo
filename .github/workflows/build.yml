@@ -486,3 +486,166 @@ jobs:
           var phase = "roll"
           var dice = 0
           
+          var legal = IntArray(0)
+          var winner = -1
+          var you = 0
+          var code = ""
+          var note = ""
+          var busy = false
+          var rollUntil = 0L
+          val last = IntArray(4)
+          val p = Paint(Paint.ANTI_ALIAS_FLAG)
+          var bl = 0f
+          var bt = 0f
+          var cs = 0f
+          val yo = arrayOf(floatArrayOf(0f, 0f), floatArrayOf(0f, 9f), floatArrayOf(9f, 9f), floatArrayOf(9f, 0f))
+          val slot = arrayOf(floatArrayOf(1.9f, 1.9f), floatArrayOf(1.9f, 4.1f), floatArrayOf(4.1f, 1.9f), floatArrayOf(4.1f, 4.1f))
+          val PIPS = arrayOf(
+          intArrayOf(), intArrayOf(0, 0), intArrayOf(-1, -1, 1, 1), intArrayOf(-1, -1, 0, 0, 1, 1),
+          intArrayOf(-1, -1, 1, -1, -1, 1, 1, 1), intArrayOf(-1, -1, 1, -1, 0, 0, -1, 1, 1, 1),
+          intArrayOf(-1, -1, -1, 0, -1, 1, 1, -1, 1, 0, 1, 1)
+          )
+          val trk: Array<IntArray> = buildTrack()
+          fun buildTrack(): Array<IntArray> {
+          val l = ArrayList<IntArray>()
+          for (c in 1..5) l.add(intArrayOf(6, c))
+          for (r in 5 downTo 0) l.add(intArrayOf(r, 6))
+          l.add(intArrayOf(0, 7))
+          l.add(intArrayOf(0, 8))
+          for (r in 1..5) l.add(intArrayOf(r, 8))
+          for (c in 9..14) l.add(intArrayOf(6, c))
+          l.add(intArrayOf(7, 14))
+          l.add(intArrayOf(8, 14))
+          for (c in 13 downTo 9) l.add(intArrayOf(8, c))
+          for (r in 9..14) l.add(intArrayOf(r, 8))
+          l.add(intArrayOf(14, 7))
+          l.add(intArrayOf(14, 6))
+          for (r in 13 downTo 9) l.add(intArrayOf(r, 6))
+          for (c in 5 downTo 0) l.add(intArrayOf(8, c))
+          l.add(intArrayOf(7, 0))
+          l.add(intArrayOf(6, 0))
+          return l.toTypedArray()
+          }
+          fun x(col: Float) = bl + col * cs
+          fun y(row: Float) = bt + row * cs
+          fun cell(color: Int, i: Int, pos: Int): FloatArray {
+          if (pos == 0) {
+          val o = yo[color]
+          val s = slot[i]
+          return floatArrayOf(o[1] + s[1], o[0] + s[0])
+          }
+          if (pos <= 51) {
+          val t = trk[(color * 13 + pos - 1) % 52]
+          return floatArrayOf(t[1] + 0.5f, t[0] + 0.5f)
+          }
+          if (pos <= 56) {
+          val k = pos - 51
+          return when (color) {
+          0 -> floatArrayOf(k + 0.5f, 7.5f)
+          1 -> floatArrayOf(7.5f, k + 0.5f)
+          2 -> floatArrayOf(14.5f - k, 7.5f)
+          else -> floatArrayOf(7.5f, 14.5f - k)
+          }
+          }
+          val d = (i - 1.5f) * 0.22f
+          return when (color) {
+          0 -> floatArrayOf(6.85f, 7.5f + d)
+          1 -> floatArrayOf(7.5f + d, 6.85f)
+          2 -> floatArrayOf(8.15f, 7.5f + d)
+          else -> floatArrayOf(7.5f + d, 8.15f)
+          }
+          }
+          fun dicePos(k: Int): FloatArray {
+          val top = bt - cs * 2.4f
+          val bot = bt + cs * 15f + cs * 2.4f
+          val left = bl + cs * 2.4f
+          val right = bl + cs * 15f - cs * 2.4f
+          return when (k) {
+          0 -> floatArrayOf(left, top)
+          1 -> floatArrayOf(right, top)
+          2 -> floatArrayOf(right, bot)
+          else -> floatArrayOf(left, bot)
+          }
+          }
+          fun update(m: JSONObject) {
+          val t = m.getJSONObject("tokens")
+          for (k in 0..3) {
+          val a = t.optJSONArray(k.toString())
+          if (a != null) for (i in 0..3) tokens[k][i] = a.getInt(i)
+          }
+          turn = m.getInt("turn")
+          phase = m.getString("phase")
+          dice = m.getInt("dice")
+          val lg = m.getJSONArray("legal")
+          legal = IntArray(lg.length()) { lg.getInt(it) }
+          winner = if (m.isNull("winner")) -1 else m.getInt("winner")
+          note = m.optString("note")
+          if (dice > 0 && turn >= 0) {
+          last[turn] = dice
+          rollUntil = SystemClock.uptimeMillis() + 600
+          }
+          busy = false
+          invalidate()
+          }
+          fun box(cv: Canvas, c0: Float, r0: Float, c1: Float, r1: Float, fill: Int) {
+          val rc = RectF(x(c0), y(r0), x(c1), y(r1))
+          p.style = Paint.Style.FILL
+          p.color = fill
+          cv.drawRect(rc, p)
+          p.style = Paint.Style.STROKE
+          p.strokeWidth = 2f
+          p.color = 0xFF9AA3B5.toInt()
+          cv.drawRect(rc, p)
+          }
+          fun pin(cv: Canvas, px: Float, py: Float, color: Int, r: Float) {
+          p.style = Paint.Style.FILL
+          p.color = Color.argb(70, 0, 0, 0)
+          cv.drawOval(RectF(px - r * 0.8f, py + r * 0.5f, px + r * 0.8f, py + r * 1.0f), p)
+          val path = Path()
+          path.moveTo(px, py + r * 0.95f)
+          path.lineTo(px - r * 0.62f, py - r * 0.1f)
+          path.lineTo(px + r * 0.62f, py - r * 0.1f)
+          path.close()
+          p.color = Color.WHITE
+          cv.drawPath(path, p)
+          cv.drawCircle(px, py - r * 0.35f, r * 0.72f, p)
+          p.color = color
+          cv.drawCircle(px, py - r * 0.35f, r * 0.52f, p)
+          p.color = Color.argb(120, 255, 255, 255)
+          cv.drawCircle(px - r * 0.15f, py - r * 0.5f, r * 0.15f, p)
+          }
+          fun text(cv: Canvas, s: String, cx: Float, cy: Float, size: Float, color: Int) {
+          p.style = Paint.Style.FILL
+          p.textAlign = Paint.Align.CENTER
+          p.typeface = Typeface.DEFAULT_BOLD
+          p.textSize = size
+          p.color = color
+          var yy = cy
+          for (line in s.split("\n")) {
+          cv.drawText(line, cx, yy, p)
+          yy += size * 1.25f
+          }
+          }
+          fun drawDice(cv: Canvas, k: Int) {
+          val d = dicePos(k)
+          val hs = cs * 1.15f
+          val act = turn == k && winner < 0
+          p.style = Paint.Style.FILL
+          p.color = 0xE0142856.toInt()
+          cv.drawRoundRect(RectF(d[0] - hs, d[1] - hs, d[0] + hs, d[1] + hs), hs * 0.3f, hs * 0.3f, p)
+          p.style = Paint.Style.STROKE
+          p.strokeWidth = if (act) 8f else 3f
+          p.color = if (act) 0xFFFFE62E.toInt() else COL[k]
+          cv.drawRoundRect(RectF(d[0] - hs, d[1] - hs, d[0] + hs, d[1] + hs), hs * 0.3f, hs * 0.3f, p)
+          val fs = hs * 0.62f
+          p.style = Paint.Style.FILL
+          p.color = if (act) Color.WHITE else 0xFFF0D8D8.toInt()
+          cv.drawRoundRect(RectF(d[0] - fs, d[1] - fs, d[0] + fs, d[1] + fs), fs * 0.3f, fs * 0.3f, p)
+          val now = SystemClock.uptimeMillis()
+          val v = if (act && now < rollUntil) 1 + ((now / 70) % 6).toInt() else last[k]
+          if (v in 1..6) {
+          p.color = Color.BLACK
+          val a = PIPS[v]
+          var i = 0
+          while (i < a.size) {
+          
